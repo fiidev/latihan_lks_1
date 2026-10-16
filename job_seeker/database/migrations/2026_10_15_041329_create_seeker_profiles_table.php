@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('seeker_profiles', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
-            $table->string('phone');
-            $table->string('address');
-            $table->text('summary');
+            $table->string('phone', 20)->nullable();
+            $table->string('address')->nullable();
+            $table->text('summary')->nullable();
             $table->string('profile_photo_path')->nullable();
             $table->timestamps();
         });

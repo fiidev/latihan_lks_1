@@ -2,28 +2,19 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    protected $guarded = [];
+
     protected function casts(): array
     {
         return [
@@ -32,17 +23,23 @@ class User extends Authenticatable
         ];
     }
 
-    public function seeker_profile() {
+    public function seeker_profile(): HasOne
+    {
         return $this->hasOne(SeekerProfile::class);
     }
-    public function resume() {
+
+    public function resumes(): HasMany
+    {
         return $this->hasMany(Resume::class);
     }
-    public function job_vacanies() {
-        return $this->hasMany(JobVacanies::class);
-    }
-    public function job_applications() {
-        return $this->hasMany(JobApplications::class);
+
+    public function job_applications(): HasMany
+    {
+        return $this->hasMany(JobApplication::class);
     }
 
+    public function job_vacancies(): HasMany
+    {
+        return $this->hasMany(JobVacancy::class, 'created_by');
+    }
 }

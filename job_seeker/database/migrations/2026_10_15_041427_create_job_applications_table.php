@@ -14,12 +14,14 @@ return new class extends Migration
         Schema::create('job_applications', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('job_vacancy_id')->constrained("job_vacancies")->cascadeOnDelete();
-            $table->foreignId('resume_id')->constrained()->cascadeOnDelete();
-            $table->string('cover_letter');
-            $table->string('status');
-            $table->string('applied_at');
+            $table->foreignId('job_vacancy_id')->constrained('job_vacancies')->cascadeOnDelete();
+            $table->foreignId('resume_id')->constrained('resumes')->restrictOnDelete();
+            $table->text('cover_letter')->nullable();
+            $table->enum('status', ['submitted', 'reviewing', 'accepted', 'rejected'])->default('submitted');
+            $table->timestamp('applied_at')->useCurrent();
             $table->timestamps();
+
+            $table->unique(['user_id', 'job_vacancy_id']);
         });
     }
 

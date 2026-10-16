@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Attributes\Guarded;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Guarded(['id'])]
 class SeekerProfile extends Model
 {
-    public function user() {
+    protected $guarded = [];
+
+    public function user(): BelongsTo
+    {
         return $this->belongsTo(User::class);
     }
 }

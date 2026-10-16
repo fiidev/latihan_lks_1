@@ -3,174 +3,76 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Resume;
 use Illuminate\Http\Request;
-use App\Models\{User, Resume};
+use Illuminate\Support\Facades\Storage;
 
 class ResumeController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request)
     {
-        $user = $request->user();
-
-        $resumes = Resume::where('user_id', $user->id)->get();
-
-        $formattedData = $resumes->map(function ($resume) {
-            return [
-                "id" => $resume->id,
-                "original_filename" => $resume->original_filename,
-                "mime_type" => $resume->mime_type,
-                "size" => $resume->size,
-                "is_current" => $resume->is_current
-            ];
-        });
+        $resumes = $request->user()->resumes()->latest()->get();
 
         return response()->json([
-            "success" => true,
-            "message" => "Resumes retrieved successfully.",
-            "data" => $formattedData
+            'success' => true,
+            'message' => 'Resumes retrieved successfully.',
+            'data' => $resumes,
         ], 200);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        $validate = $request->validate([
-            'resume' => 'required|mimes:pdf|max:5120'
+        $request->validate([
+            'resume' => 'required|file|mimes:pdf|max:5120',
         ]);
 
-        $user = $request->user();
         $file = $request->file('resume');
+        $user = $request->user();
 
-        $filePath = $file->store('resumes');
+        $user->resumes()->update(['is_current' => false]);
 
-        if (!$filePath) {
-            return response()->json([
-                "success" => false,
-                "message" => "Server error: Failed to secure and store the resume metadata."
-            ], 500);
-        }
+        $path = $file->store('resumes/'.$user->id, 'local');
 
-        Resume::where('user_id', $user->id)->update(['is_current' => false]);
-
-
-        $resume = Resume::create([
-            'user_id' => $user->id,
+        $resume = $user->resumes()->create([
             'original_filename' => $file->getClientOriginalName(),
-            'file_path' => $filePath,
+            'storage_path' => $path,
             'mime_type' => $file->getClientMimeType(),
             'size' => $file->getSize(),
             'is_current' => true,
         ]);
 
         return response()->json([
-            "success" => true,
-            "message" => "Resume uploaded successfully.",
-            "data" => [
-                "id" => $resume->id,
-                "original_filename" => $resume->original_filename,
-                "mime_type" => $resume->mime_type,
-                "size" => $resume->size,
-                "is_current" => $resume->is_current
-            ]
-        ], 200);
+            'success' => true,
+            'message' => 'Resume uploaded successfully.',
+            'data' => $resume,
+        ], 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function download(Request $request, $id)
     {
-        //
+        $resume = Resume::findOrFail($id);
+
+        abort_if($resume->user_id !== $request->user()->id, 403, 'Unauthorized access to resume.');
+
+        abort_if(! Storage::disk('local')->exists($resume->storage_path), 404, 'File not found on storage.');
+
+        return Storage::disk('local')->download($resume->storage_path, $resume->original_filename);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function destroy(Request $request, $id)
     {
-        //
-    }
+        $resume = Resume::findOrFail($id);
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
+        abort_if($resume->user_id !== $request->user()->id, 403, 'Unauthorized.');
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Request $request, string $id)
-    {
-        $user = $request->user();
-        $resume = Resume::where('id', $id)->where('user_id', $user->id)->first();
+        abort_if($resume->job_applications()->exists(), 409, 'Resume is referenced by application and cannot be deleted.');
 
-        if (!$resume) {
-            return response()->json([
-                "success" => false,
-                "message" => "Resume not found or access denied."
-            ], 404);
-        }
-
-        if ($user->job_applications()->where('resume_id', $resume->id)->exists()) {
-            return response()->json([
-                "success" => false,
-                "message" => "Cannot delete resume. It is currently referenced by an active job application."
-            ], 409);
-        }
-
-        if (Storage::exists($resume->file_path)) {
-            Storage::delete($resume->file_path);
+        if (Storage::disk('local')->exists($resume->storage_path)) {
+            Storage::disk('local')->delete($resume->storage_path);
         }
 
         $resume->delete();
 
         return response()->noContent();
     }
-
-
-    public function download(Request $request, string $id)
-    {
-        $user = $request->user();
-        $resume = Resume::where('id', $id)->where('user_id', $user->id)->first();
-
-        if (!$resume) {
-            return response()->json([
-                "success" => false,
-                "message" => "Resume not found or access denied."
-            ], 404);
-        }
-
-        if (!Storage::exists($resume->file_path)) {
-            return response()->json([
-                "success" => false,
-                "message" => "The requested file could not be found on the server."
-            ], 404);
-        }
-
-        return response()->download(
-            storage_path('app/' . $resume->file_path), 
-            $resume->original_filename, 
-            [
-                'Content-Type' => $resume->mime_type,
-                'Content-Disposition' => 'attachment; filename="' . $resume->original_filename . '"'
-            ]
-        );
-    }
-
 }

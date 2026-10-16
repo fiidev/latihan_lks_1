@@ -3,87 +3,69 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Laravel\Sanctum\HasApiTokens;
-use App\Models\User;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        $validate = $request->validate([
-            'name' => 'required:string',
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|confirmed',
+            'password' => 'required|string|min:8|confirmed',
         ]);
-
-        // if ($validate['password'] !== $validate['password_confirmation']) {
-        //     return response()->json([
-        //         "success" => false,
-        //         "message" => "password_confirmation"
-        //     ], 422);
-        // }
 
         $user = User::create([
-            'name' => $validate['name'],
-            'email' => $validate['email'],
-            'password' => $validate['password'],
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'role' => 'job_seeker',
         ]);
-
-        $user->seeker_profile()->create([
-            'phone' => '-',
-            'address' => '-',
-            'summary' => '-',
-        ]);
-
-        $user->refresh();
-
-        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            "success" => true,
-            "message" => "login success",
-            "data" => [
-                    "id" => $user->id,
-                    "name" => $user->name,
-                    "email" => $user->email,
-                    "role" => $user->role,
-            ]
-        ], 200);
+            'success' => true,
+            'message' => 'Account registered successfully.',
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
+        ], 201);
     }
 
     public function login(Request $request)
     {
-        $validate = $request->validate([
-            'email' => 'required|string',
-            'password' => 'required|string'
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $validated['email'])->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-           
+        if (! $user || ! Hash::check($validated['password'], $user->password)) {
             return response()->json([
-                "success" => false,
-                "message" => "Incorrect Credentials",
+                'success' => false,
+                'message' => 'Incorrect credentials.',
             ], 401);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
-            "success" => true,
-            "message" => "login success",
-            "data" => [
-                "access_token" => $token,
-                "token_type" => "Bearer",
-                "user" => [
-                    "id" => $user->id,
-                    "name" => $user->name,
-                    "role" => $user->role,
-                ]
-            ]
+            'success' => true,
+            'message' => 'Login successful.',
+            'data' => [
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'role' => $user->role,
+                ],
+            ],
         ], 200);
     }
 }

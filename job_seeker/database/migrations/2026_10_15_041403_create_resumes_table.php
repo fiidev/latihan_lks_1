@@ -16,9 +16,9 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('original_filename');
             $table->string('storage_path');
-            $table->string('mime_type');
-            $table->integer('size');
-            $table->boolean('is_current');
+            $table->string('mime_type', 50);
+            $table->unsignedInteger('size');
+            $table->boolean('is_current')->default(true);
             $table->timestamps();
         });
     }

@@ -17,10 +17,10 @@ return new class extends Migration
             $table->string('title');
             $table->string('company_name');
             $table->string('location');
-            $table->timestamp('employment_type');
+            $table->enum('employment_type', ['full_time', 'part_time', 'contract', 'internship']);
             $table->text('description');
-            $table->enum('status', ["published","draf"]);
-            $table->string('deadline');
+            $table->enum('status', ['draft', 'published'])->default('draft');
+            $table->date('deadline')->nullable();
             $table->timestamps();
         });
     }
